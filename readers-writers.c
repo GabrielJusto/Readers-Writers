@@ -22,6 +22,7 @@ int nReaders;
 int nWriters;
 bool reading;
 FILE * fp;
+FILE * fpr;
 
 void* writer();
 void* reader();
@@ -38,8 +39,8 @@ bool everyWriterBehind(int);
 
 int main (int argc, char* argv[])
 {
-    
-    fp = fopen("./text.txt", "w");
+    FILE * freset = fopen("./text.txt", "w");
+    fclose(freset);
     reading = false;
     int err_code = 0;
     nReaders = atoi(argv[1]);
@@ -48,7 +49,6 @@ int main (int argc, char* argv[])
     pthread_t re[nReaders];
     level  = malloc((nWriters + nReaders) * sizeof(int));
     last_to_enter = malloc(((nWriters + nReaders)-1) * sizeof(int));
-   // fprintf(fp, "Hello World!!!");
     for(int i=0; i<nWriters + nReaders; i++)
     {
         if (i < nWriters)
@@ -74,7 +74,6 @@ int main (int argc, char* argv[])
         
     }
     sleep(5);
-    fclose(fp);
     
    pthread_exit(NULL);
 }
@@ -83,14 +82,22 @@ int main (int argc, char* argv[])
 
 void* writer(void* id)
 {
-
+    FILE * fpw;
     int my_id = (int)id;
-    // while (1)
+
+    
+    //  while (1)
     for(int i=0; i<100; i++)
     {
+        
         lockWriter(my_id);
+
+
+        
+        fpw = fopen("./text.txt", "a");
         reading = false;   
-        fprintf(fp, "processo %d escrevendo \n", id);
+        fprintf(fpw, "processo %d escrevendo \n", id);
+        fclose(fpw);
         unlock(id);
     } 
 }
@@ -110,22 +117,22 @@ void lockWriter (int id)
 void* reader(void* id)
 {
     int my_id = (int)id;
+    
+    FILE * fpr = fopen("./text.txt", "r");
+    char c = fgetc(fpr);
     lockReader(id);
     reading = true;
-    char buff[255];
-
-    fscanf(fp, "%s", buff);
-    printf("1 : %s\n", buff );
-
-    fgets(buff, 255, (FILE*)fp);
-   printf("2: %s\n", buff );
-   
-   fgets(buff, 255, (FILE*)fp);
-   printf("3: %s\n", buff );
-
-    unlock(id);
     
-}
+    printf("\n leitor %d: \n", my_id);
+    while (c != EOF) 
+    { 
+        printf ("%c", c); 
+        c = fgetc(fpr); 
+    } 
+    fclose(fpr);
+    unlock(id);
+}  
+
 
 void lockReader(int id)
 {
