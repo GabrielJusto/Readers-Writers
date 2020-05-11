@@ -1,5 +1,5 @@
 /*
-    Gabriel Bonatto Justo
+    Gabriel Bonatto Justo Gabriel Paiz
 
     compile:
     gcc -pthread readers-writers.c -o readers-writers
