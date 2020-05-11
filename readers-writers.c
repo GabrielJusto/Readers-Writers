@@ -19,6 +19,8 @@ int* level;
 int* last_to_enter;
 int nReaders;
 int nWriters;
+bool reading;
+FILE * fp;
 
 void* writer();
 void* reader();
@@ -35,20 +37,31 @@ bool everyWriterBehind(int);
 
 int main (int argc, char* argv[])
 {
+    
+    fp = fopen("./text.txt", "w");
+    reading = false;
     int err_code = 0;
     nReaders = atoi(argv[1]);
     nWriters = atoi(argv[2]);
-    pthread_t wr;
-    pthread_t re;
+    pthread_t wr[nWriters];
+    pthread_t re[nReaders];
     level  = malloc((nWriters + nReaders) * sizeof(int));
     last_to_enter = malloc(((nWriters + nReaders)-1) * sizeof(int));
-
+   // fprintf(fp, "Hello World!!!");
     for(int i=0; i<nWriters; i++)
     {
-        err_code = pthread_create(&wr, NULL, writer, (void*) i);
-        pthread_join(wr, NULL);
+        
+        err_code = pthread_create(&wr[i], NULL, writer, (void*) i);
+        printf("criei o processo %d \n", i);
+        if (err_code)
+        {
+			printf("ERROR code is %d\n", err_code);
+			break;
+		}
+        //pthread_join(wr[i], NULL);
     }
-
+    printf("sai do for \n");
+    fclose(fp);
     
    pthread_exit(NULL);
 }
@@ -58,11 +71,14 @@ int main (int argc, char* argv[])
 void* writer(void* id)
 {
     int my_id = (int)id;
+    printf("my id is %d \n", id);
     lockWriter(my_id);
-    //
-    unlock(id);
     
-    printf("thread %d say hello \n", my_id);
+    reading = false;
+    
+    fprintf(fp, "processo %d escrevendo \n", id);
+    unlock(id);
+    printf("processo %d terminou \n", id);
 }
 
 void lockWriter (int id)
@@ -71,8 +87,7 @@ void lockWriter (int id)
     {
         level[id] = i;
         last_to_enter[i] = id;
-        while (last_to_enter[i] == id && everyOneBehind(id)){}
-        
+        while (last_to_enter[i] == id && everyOneBehind(id)){ }
     }
     
 }
@@ -82,8 +97,10 @@ void* reader(void* id)
 {
     int my_id = (int)id;
     lockReader(id);
+    reading = true;
 
     unlock(id);
+    
 }
 
 void lockReader(int id)
@@ -92,14 +109,13 @@ void lockReader(int id)
     {
         level[id] = i;
         last_to_enter[i] = id;
-        while (last_to_enter[i] == id && everyWriterBehind(id)){}
-        
+        while (last_to_enter[i] == id && everyWriterBehind(id) && reading == false){}
     }
     
 }
 
 
-void unlock (int id) { level[id] = -1; }
+void unlock (int id){level[id] = -1;}
 
 bool everyWriterBehind(int id)
 {
@@ -112,8 +128,8 @@ bool everyOneBehind(int id)
 {
     for (int i = 0; i < nWriters; i++)
     {
-        if(level[i] > level[id])
-            return false;
+        if(level[i] > level[id] && i != id)
+            return true;
     }
-    return true;
+    return false;
 }
