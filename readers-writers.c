@@ -18,6 +18,7 @@
 
 int* level;
 int* last_to_enter;
+int* readers;
 int nReaders;
 int nWriters;
 bool reading;
@@ -31,6 +32,7 @@ void lockReader(int);
 void unlock(int);
 bool everyOneBehind(int);
 bool everyWriterBehind(int);
+bool thereAreReaders();
 
 
 
@@ -49,6 +51,11 @@ int main (int argc, char* argv[])
     pthread_t re[nReaders];
     level  = malloc((nWriters + nReaders) * sizeof(int));
     last_to_enter = malloc(((nWriters + nReaders)-1) * sizeof(int));
+    readers = malloc(sizeof(int) * nReaders);
+    for (int i = 0; i < nReaders; i++)
+        readers[i] = -1;
+    
+    
     for(int i=0; i<nWriters + nReaders; i++)
     {
         if (i < nWriters)
@@ -92,13 +99,13 @@ void* writer(void* id)
         
         lockWriter(my_id);
 
-
-        
         fpw = fopen("./text.txt", "a");
         reading = false;   
-        fprintf(fpw, "processo %d escrevendo \n", id);
+        fprintf(fpw, "processo %d escrevendo \n", my_id);
         fclose(fpw);
-        unlock(id);
+
+        unlock(my_id);
+
     } 
 }
 
@@ -108,19 +115,29 @@ void lockWriter (int id)
     {
         level[id] = i;
         last_to_enter[i] = id;
-        while (last_to_enter[i] == id && everyOneBehind(id)){ }
+        while (last_to_enter[i] == id && everyOneBehind(id) && thereAreReaders()){ }
     }
     
 }
 
-
+bool thereAreReaders()
+{
+    for (int i = 0; i < nReaders; i++)
+    {
+        if (readers[i] != -1)
+            return true;
+    }
+    return false;
+    
+}
 void* reader(void* id)
 {
     int my_id = (int)id;
     
     FILE * fpr = fopen("./text.txt", "r");
     char c = fgetc(fpr);
-    lockReader(id);
+    lockReader(my_id);
+    readers[my_id] = 0;
     reading = true;
     
     printf("\n leitor %d: \n", my_id);
@@ -130,7 +147,8 @@ void* reader(void* id)
         c = fgetc(fpr); 
     } 
     fclose(fpr);
-    unlock(id);
+    unlock(my_id);
+    readers[my_id] = -1;
 }  
 
 
