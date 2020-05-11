@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 
 int* level;
@@ -48,19 +49,31 @@ int main (int argc, char* argv[])
     level  = malloc((nWriters + nReaders) * sizeof(int));
     last_to_enter = malloc(((nWriters + nReaders)-1) * sizeof(int));
    // fprintf(fp, "Hello World!!!");
-    for(int i=0; i<nWriters; i++)
+    for(int i=0; i<nWriters + nReaders; i++)
     {
-        
-        err_code = pthread_create(&wr[i], NULL, writer, (void*) i);
-        printf("criei o processo %d \n", i);
-        if (err_code)
+        if (i < nWriters)
         {
-			printf("ERROR code is %d\n", err_code);
-			break;
-		}
-        //pthread_join(wr[i], NULL);
+            err_code = pthread_create(&wr[i], NULL, writer, (void*) i);
+            if (err_code)
+            {
+                printf("ERROR code is %d\n", err_code);
+                break;
+            }
+        }
+        else
+        {
+            err_code = pthread_create(&re[i-nWriters], NULL, reader, (void*) i);
+            if (err_code)
+            {
+                printf("ERROR code is %d\n", err_code);
+                break;
+            }
+        }
+        
+        
+        
     }
-    printf("sai do for \n");
+    sleep(5);
     fclose(fp);
     
    pthread_exit(NULL);
@@ -70,15 +83,16 @@ int main (int argc, char* argv[])
 
 void* writer(void* id)
 {
+
     int my_id = (int)id;
-    printf("my id is %d \n", id);
-    lockWriter(my_id);
-    
-    reading = false;
-    
-    fprintf(fp, "processo %d escrevendo \n", id);
-    unlock(id);
-    printf("processo %d terminou \n", id);
+    // while (1)
+    for(int i=0; i<100; i++)
+    {
+        lockWriter(my_id);
+        reading = false;   
+        fprintf(fp, "processo %d escrevendo \n", id);
+        unlock(id);
+    } 
 }
 
 void lockWriter (int id)
@@ -98,6 +112,16 @@ void* reader(void* id)
     int my_id = (int)id;
     lockReader(id);
     reading = true;
+    char buff[255];
+
+    fscanf(fp, "%s", buff);
+    printf("1 : %s\n", buff );
+
+    fgets(buff, 255, (FILE*)fp);
+   printf("2: %s\n", buff );
+   
+   fgets(buff, 255, (FILE*)fp);
+   printf("3: %s\n", buff );
 
     unlock(id);
     
@@ -121,8 +145,8 @@ bool everyWriterBehind(int id)
 {
     for (int i = 0; i < nWriters; i++) // só é testado se há escritores na frente pois não tem probleba dois leitores acessarem ao mesmo tempo
         if(level[i] > level[id])
-            return false;
-    return true;
+            return true;
+    return false;
 }
 bool everyOneBehind(int id)
 {
